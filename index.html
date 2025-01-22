@@ -1,0 +1,495 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HAQIQAH</title>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js'></script>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --primary-color: #007bff;
+            --secondary-color: #f8f9fa;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            text-align: center;
+            padding: 15px;
+        }
+        .tabs {
+            display: flex;
+            justify-content: center;
+            background-color: #f4f4f4;
+            padding: 10px;
+        }
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            opacity: 0.7;
+        }
+        .tab-button.active {
+            opacity: 1;
+            border-bottom: 2px solid var(--primary-color);
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        #map {
+            width: 100%;
+            height: 500px;
+            border-radius: 8px;
+        }
+        .report-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        .report-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            transition: transform 0.3s;
+        }
+        .report-card:hover {
+            transform: scale(1.02);
+        }
+        .crisis-alert {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #ff4444;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        .crisis-alert button {
+            background: none;
+            border: none;
+            color: white;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .quick-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .tag-button {
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .tag-button.active {
+            background-color: var(--primary-color);
+            color: white;
+        }
+    </style>
+    
+</head>
+<body>
+    <header>
+        <h1>HAQIQAH</h1>
+        <div class="tabs">
+            <button class="tab-button active" data-tab="map-section">Map</button>
+            <button class="tab-button" data-tab="report-section">Create Report</button>
+            <button class="tab-button" data-tab="view-section">View Reports</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="map-section" class="tab-content active">
+            <h2>Location Tracking</h2>
+            <div id="map"></div>
+        </div>
+
+        <div id="report-section" class="tab-content">
+            <h2>Submit Incident Report</h2>
+            <form id="report-form">
+                <input type="text" id="title" placeholder="Incident Title" required>
+                <textarea id="description" placeholder="Describe the incident details" required></textarea>
+                <select id="urgency">
+                    <option value="low">Low Urgency</option>
+                    <option value="medium">Medium Urgency</option>
+                    <option value="high">High Urgency</option>
+                </select>
+                <div class="quick-tags">
+                    <button type="button" class="tag-button" data-tag="Natural Disaster">Natural Disaster</button>
+                    <button type="button" class="tag-button" data-tag="Medical Emergency">Medical Emergency</button>
+                    <button type="button" class="tag-button" data-tag="Security Threat">Security Threat</button>
+                    <button type="button" class="tag-button" data-tag="Infrastructure Issue">Infrastructure Issue</button>
+                </div>
+                <input type="hidden" id="tags" name="tags">
+                <input type="file" id="media" accept="image/*,video/*">
+                <input type="hidden" id="location">
+                <button type="submit">Submit Report</button>
+            </form>
+            
+        </div>
+
+        <div id="view-section" class="tab-content">
+            <h2>Recent Incident Reports</h2>
+            <div id="reports-list" class="report-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoiZGVla3VoIiwiYSI6ImNtNjg3Y3k4bzAwam0ycXNpZDc5NmFpeTQifQ.3yvbg1D88mKKAHP5ju5F8Q';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const tabs = document.querySelectorAll('.tab-button');
+            const contents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const target = tab.dataset.tab;
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    contents.forEach(c => c.classList.remove('active'));
+                    document.getElementById(target).classList.add('active');
+                });
+            });
+
+            const map = new mapboxgl.Map({
+                container: 'map',
+                style: 'mapbox://styles/mapbox/streets-v11',
+                center: [0, 0],
+                zoom: 2
+            });
+
+            function generateRealisticReports(userLocation) {
+    const [userLat, userLon] = userLocation;
+    const reports = [];
+
+    const globalCrises = [
+        { title: "Earthquake in Turkey", location: "39.9334,32.8597", urgency: "high", description: "Severe earthquake affecting multiple cities, urgent humanitarian aid needed.", tags: ["Natural Disaster", "Infrastructure Issue"] },
+        { title: "Flood in Pakistan", location: "24.8607,67.0011", urgency: "high", description: "Massive flooding displacing thousands of residents, critical infrastructure damage.", tags: ["Natural Disaster"] },
+        { title: "Wildfire in California", location: "37.7749,-122.4194", urgency: "medium", description: "Spreading wildfire threatening residential areas, evacuation in progress.", tags: ["Natural Disaster"] },
+        { title: "Political Unrest in Sudan", location: "15.5007,32.5599", urgency: "high", description: "Ongoing conflict with significant civilian impact, humanitarian crisis developing.", tags: ["Security Threat"] },
+        { title: "Typhoon in Philippines", location: "14.5995,120.9842", urgency: "high", description: "Super typhoon causing widespread destruction, emergency evacuations underway.", tags: ["Natural Disaster"] },
+        { title: "Drought in Ethiopia", location: "9.1450,40.4897", urgency: "medium", description: "Severe drought affecting crops and livestock, food security at risk.", tags: ["Natural Disaster", "Health Crisis"] },
+        { title: "Volcanic Eruption in Iceland", location: "64.1265,-21.8174", urgency: "high", description: "Volcanic ash disrupting air travel, nearby communities evacuated.", tags: ["Natural Disaster"] },
+        { title: "Heatwave in Australia", location: "-33.8688,151.2093", urgency: "medium", description: "Record-breaking temperatures, increased risk of bushfires and health concerns.", tags: ["Natural Disaster", "Health Crisis"] },
+        { title: "Tsunami Warning in Japan", location: "35.6762,139.6503", urgency: "high", description: "Coastal areas on high alert, immediate evacuation recommended.", tags: ["Natural Disaster"] },
+        { title: "Landslide in Nepal", location: "27.7172,85.3240", urgency: "high", description: "Multiple villages affected, rescue operations hampered by difficult terrain.", tags: ["Natural Disaster"] },
+        { title: "Oil Spill in Gulf of Mexico", location: "27.8006,-93.9999", urgency: "medium", description: "Environmental disaster unfolding, marine life at risk.", tags: ["Environmental Issue"] },
+        { title: "Refugee Crisis in Lebanon", location: "33.8938,35.5018", urgency: "high", description: "Overwhelmed refugee camps, urgent need for humanitarian assistance.", tags: ["Humanitarian Crisis"] },
+        { title: "Terrorist Attack in France", location: "48.8566,2.3522", urgency: "high", description: "Major city on lockdown, security forces mobilized.", tags: ["Security Threat"] },
+        { title: "Cyber Attack in United Kingdom", location: "51.5074,-0.1278", urgency: "medium", description: "Critical infrastructure compromised, government services disrupted.", tags: ["Security Threat", "Infrastructure Issue"] },
+        { title: "Famine in Yemen", location: "15.3694,44.1910", urgency: "high", description: "Millions at risk of starvation, immediate food aid required.", tags: ["Humanitarian Crisis", "Health Crisis"] },
+        { title: "Civil Unrest in Venezuela", location: "10.4806,-66.9036", urgency: "high", description: "Violent protests spreading, shortages of basic supplies reported.", tags: ["Security Threat", "Humanitarian Crisis"] },
+        { title: "Nuclear Plant Incident in Ukraine", location: "51.3890,30.0997", urgency: "high", description: "Potential radiation leak, surrounding areas being evacuated.", tags: ["Environmental Issue", "Health Crisis"] },
+        { title: "Locust Swarms in East Africa", location: "0.3476,32.5825", urgency: "medium", description: "Crops destroyed, food security threatened across multiple countries.", tags: ["Environmental Issue", "Humanitarian Crisis"] },
+        { title: "Glacier Collapse in Alps", location: "45.9237,7.0207", urgency: "medium", description: "Tourist areas affected, search and rescue operations ongoing.", tags: ["Natural Disaster"] },
+        { title: "Water Crisis in India", location: "28.6139,77.2090", urgency: "high", description: "Severe water shortages in major cities, riots breaking out.", tags: ["Environmental Issue", "Humanitarian Crisis"] }
+
+    ];
+
+    const localCrises = [
+        { 
+            title: "Local Infrastructure Damage", 
+            location: `${userLat + 0.1},${userLon + 0.1}`, 
+            urgency: "medium", 
+            description: "Bridge collapse reported, traffic disruption and potential safety hazards.",
+            tags: ["Infrastructure Issue"]
+        },
+        { 
+            title: "Community Health Emergency", 
+            location: `${userLat - 0.05},${userLon - 0.05}`, 
+            urgency: "low", 
+            description: "Potential outbreak of communicable disease, health authorities investigating.",
+            tags: ["Medical Emergency"]
+        },
+        { 
+            title: "Environmental Contamination", 
+            location: `${userLat + 0.05},${userLon - 0.1}`, 
+            urgency: "high", 
+            description: "Chemical spill detected, potential environmental and health risks.",
+            tags: ["Infrastructure Issue", "Medical Emergency"]
+        }
+    ];
+
+    const allReports = [...globalCrises, ...localCrises];
+    
+    const numReportsToGenerate = 16; // You can adjust this number
+for (let i = 0; i < numReportsToGenerate; i++) {
+    const randomIndex = Math.floor(Math.random() * allReports.length);
+    const report = { ...allReports[randomIndex] };
+    report.date = new Date().toISOString();
+    reports.push(report);
+}
+
+
+    localStorage.setItem("reports", JSON.stringify(reports));
+}
+
+
+            function createMapPopup(map) {
+                const reports = JSON.parse(localStorage.getItem("reports")) || [];
+                
+                reports.forEach(report => {
+                    const [lat, lng] = report.location.split(',').map(parseFloat);
+                    
+                    const popup = new mapboxgl.Popup({ offset: 25 })
+                        .setHTML(`
+                            <div style="max-width: 250px;">
+                                <h3>${report.title}</h3>
+                                <p><strong>Description:</strong> ${report.description}</p>
+                                <p><strong>Urgency:</strong> ${report.urgency}</p>
+                                <p><strong>Location:</strong> ${report.location}</p>
+                            </div>
+                        `);
+
+                    new mapboxgl.Marker({
+                        color: report.urgency === 'high' ? '#FF0000' : 
+                            report.urgency === 'medium' ? '#FFA500' : '#008000',
+                        scale: 0.8
+                    })
+                    .setLngLat([lng, lat])
+                    .setPopup(popup)
+                    .addTo(map);
+                });
+            }
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const userLocation = [position.coords.longitude, position.coords.latitude];
+                    
+                    map.setCenter(userLocation);
+                    map.setZoom(4);
+
+                    new mapboxgl.Marker({ color: '#4264fb' })
+                        .setLngLat(userLocation)
+                        .addTo(map);
+
+                    document.getElementById("location").value = `${userLocation[1]},${userLocation[0]}`;
+                    
+                    generateRealisticReports(userLocation);
+                    
+                    createMapPopup(map);
+                    
+                    checkProximityToCrisis(userLocation[1], userLocation[0]);
+                });
+            }
+
+            map.on('load', () => {
+                createMapPopup(map);
+            });
+
+            function checkProximityToCrisis(userLat, userLon) {
+    const reports = JSON.parse(localStorage.getItem("reports")) || [];
+    const crisisLocations = reports.map(report => {
+        const [lat, lng] = report.location.split(',');
+        return { lat: parseFloat(lat), lng: parseFloat(lng) };
+    });
+
+    let alertShown = false;
+    crisisLocations.forEach(location => {
+        const distance = calculateDistance(userLat, userLon, location.lat, location.lng);
+        if (distance <= 1000000 && !alertShown) {
+            showCrisisAlert();
+            alertShown = true;
+        }
+    });
+}
+
+function showCrisisAlert() {
+    const existingAlert = document.querySelector('.crisis-alert');
+    if (existingAlert) return;
+
+    const alertDiv = document.createElement('div');
+    alertDiv.classList.add('crisis-alert');
+    alertDiv.innerHTML = `
+        Crisis Area Nearby! 
+        <button onclick="this.parentElement.remove()">Dismiss</button>
+    `;
+    document.body.appendChild(alertDiv);
+}
+
+
+            function showCrisisAlert() {
+                const existingAlert = document.querySelector('.crisis-alert');
+                if (existingAlert) return;
+
+                const alertDiv = document.createElement('div');
+                alertDiv.classList.add('crisis-alert');
+                alertDiv.innerHTML = `
+                    Crisis Area Nearby! 
+                    <button onclick="this.parentElement.remove()">Dismiss</button>
+                `;
+                document.body.appendChild(alertDiv);
+            }
+
+            function calculateDistance(lat1, lon1, lat2, lon2) {
+                const R = 6371;
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                          Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            }
+
+            const reportForm = document.getElementById("report-form");
+            reportForm.addEventListener("submit", (e) => {
+                e.preventDefault();
+                const report = {
+    title: reportForm.querySelector("#title").value,
+    description: reportForm.querySelector("#description").value,
+    urgency: reportForm.querySelector("#urgency").value,
+    location: document.getElementById("location").value,
+    tags: document.getElementById("tags").value.split(',').filter(tag => tag),
+    date: new Date().toISOString()
+};
+
+
+                const mediaFile = reportForm.querySelector("#media").files[0];
+                if (mediaFile) {
+                    report.media = URL.createObjectURL(mediaFile);
+                }
+
+                let reports = JSON.parse(localStorage.getItem("reports")) || [];
+                reports.push(report);
+                localStorage.setItem("reports", JSON.stringify(reports));
+                alert("Report submitted successfully!");
+                reportForm.reset();
+                loadReports();
+                createMapPopup(map);
+            });
+
+            function loadReports() {
+                const reportsList = document.getElementById("reports-list");
+                reportsList.innerHTML = "";
+                const reports = JSON.parse(localStorage.getItem("reports")) || [];
+                
+                reports.forEach((report) => {
+                    const reportDiv = document.createElement("div");
+                    reportDiv.classList.add("report-card");
+                    reportDiv.innerHTML = `
+    <h3>${report.title}</h3>
+    <p>${report.description}</p>
+    <p><strong>Urgency:</strong> ${report.urgency}</p>
+    <p><strong>Location:</strong> ${report.location}</p>
+    <p><strong>Date:</strong> ${new Date(report.date).toLocaleString()}</p>
+    <p><strong>Tags:</strong> ${report.tags.join(', ')}</p>
+`;
+
+
+                    if (report.media) {
+                        if (report.media.includes("video")) {
+                            reportDiv.innerHTML += `<video controls src="${report.media}" style="max-width: 100%;"></video>`;
+                        } else {
+                            reportDiv.innerHTML += `<img src="${report.media}" alt="Uploaded Media" style="max-width: 100%;">`;
+                        }
+                    }
+                    reportsList.appendChild(reportDiv);
+                });
+            }
+
+            document.querySelector('[data-tab="view-section"]').addEventListener("click", loadReports);
+        });
+        document.querySelectorAll('.tag-button').forEach(button => {
+    button.addEventListener('click', () => {
+        button.classList.toggle('active');
+        const activeTags = Array.from(document.querySelectorAll('.tag-button.active'))
+            .map(btn => btn.dataset.tag);
+        document.getElementById('tags').value = activeTags.join(',');
+    });
+});
+
+    </script>
+</body>
+</html> 
+
